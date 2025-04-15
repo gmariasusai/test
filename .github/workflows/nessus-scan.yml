@@ -41,8 +41,8 @@ jobs:
           curl -k -X GET "https://10.10.30.79:8834/scans/$SCAN_ID/export" \
           -H "X-ApiKeys: accessKey=ed3364476d8b920196645ca9c0c3a25c61e3847c810b90c73c8d5c0dfcc8f316; secretKey=2c25353939b1eb85ddc23d95e17fd92e867732e342bbc69fed708ff7e024cb0f" > nessus_scan_report.html
 
-      - name: Upload Report as Artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: nessus-scan-report
-          path: nessus_scan_report.html
+      # - name: Upload Report as Artifact
+      #   uses: actions/upload-artifact@v2
+      #   with:
+      #     name: nessus-scan-report
+      #     path: nessus_scan_report.html
