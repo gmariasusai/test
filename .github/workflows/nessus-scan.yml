@@ -33,6 +33,12 @@ jobs:
           curl -k -X GET "https://10.10.30.79:8834/scans" \
           -H "X-ApiKeys: accessKey=ed3364476d8b920196645ca9c0c3a25c61e3847c810b90c73c8d5c0dfcc8f316; secretKey=2c25353939b1eb85ddc23d95e17fd92e867732e342bbc69fed708ff7e024cb0f"
 
+      - name: Install jq (if missing)
+        run: |
+          if ! command -v jq &> /dev/null; then
+            sudo apt-get update && sudo apt-get install -y jq
+          fi
+
       - name: Download Scan Report
         run: |
           SCAN_ID=$(curl -s -X GET "https://10.10.30.79:8834/scans" \
