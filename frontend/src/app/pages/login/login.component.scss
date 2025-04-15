@@ -1,0 +1,58 @@
+.card-wrapper {
+    max-width: 500px;
+    margin: 50px auto;
+    padding: 20px;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    background-color: #ffffff;
+    border: 1px solid #e5e7eb;
+
+    // Center everything horizontally
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    h2 {
+        color: #4b7737;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    mat-form-field {
+        width: 100%;
+        margin-bottom: 1.5rem;
+    }
+
+    // Center the button
+    button {
+        font-weight: 500;
+        font-size: 1rem;
+        text-transform: none;
+        padding: 12px 0;
+        border-radius: 8px;
+        background-color: #4b7737;
+        color: #ffffff;
+        min-width: 200px;
+        align-self: center;
+        border: none;
+
+        &.mat-raised-button {
+            background-color: #2563eb;
+            color: #4b7737;
+
+            &:hover {
+                background-color: #1d4ed8;
+            }
+
+            &:disabled {
+                background-color: #9ca3af;
+                cursor: not-allowed;
+            }
+        }
+    }
+}
+
+.button-wrapper {
+    display: flex;
+    justify-content: center;
+}

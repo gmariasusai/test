@@ -1,0 +1,47 @@
+name: Nessus Security Scan
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  nessus_scan:
+    runs-on: ubuntu-latest # Change to self-hosted if needed
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Run Nessus Scan
+        run: |
+          curl -k -X POST "https://10.10.30.79:8834/scans" \
+          -H "X-ApiKeys: accessKey=ed3364476d8b920196645ca9c0c3a25c61e3847c810b90c73c8d5c0dfcc8f316; secretKey=2c25353939b1eb85ddc23d95e17fd92e867732e342bbc69fed708ff7e024cb0f" \
+          -H "Content-Type: application/json" \
+          -d '{
+              "uuid": "731a8e52-3ea6-a291-ec0a-d2ff0619c19d7bd788d6be818b65",
+              "settings": {
+                "name": "GitHub Nessus Scan",
+                "text_targets": "10.10.30.79",
+                "scanner_id": "1"
+              }
+          }'
+
+      - name: Check Scan Status
+        run: |
+          curl -k -X GET "https://10.10.30.79:8834/scans" \
+          -H "X-ApiKeys: accessKey=ed3364476d8b920196645ca9c0c3a25c61e3847c810b90c73c8d5c0dfcc8f316; secretKey=2c25353939b1eb85ddc23d95e17fd92e867732e342bbc69fed708ff7e024cb0f"
+
+      - name: Download Scan Report
+        run: |
+          SCAN_ID=$(curl -s -X GET "https://10.10.30.79:8834/scans" \
+          -H "X-ApiKeys: accessKey=ed3364476d8b920196645ca9c0c3a25c61e3847c810b90c73c8d5c0dfcc8f316; secretKey=2c25353939b1eb85ddc23d95e17fd92e867732e342bbc69fed708ff7e024cb0f" | jq '.scans[0].id')
+
+          curl -k -X GET "https://10.10.30.79:8834/scans/$SCAN_ID/export" \
+          -H "X-ApiKeys: accessKey=ed3364476d8b920196645ca9c0c3a25c61e3847c810b90c73c8d5c0dfcc8f316; secretKey=2c25353939b1eb85ddc23d95e17fd92e867732e342bbc69fed708ff7e024cb0f" > nessus_scan_report.html
+
+      # - name: Upload Report as Artifact
+      #   uses: actions/upload-artifact@v2
+      #   with:
+      #     name: nessus-scan-report
+      #     path: nessus_scan_report.html
