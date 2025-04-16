@@ -1,4 +1,4 @@
-name: Nessus Security Scan 1
+name: Nessus Security Scan
 
 on:
   push:
@@ -19,35 +19,10 @@ jobs:
             sudo apt-get update && sudo apt-get install -y jq
           fi
 
-      - name: Stop Existing Scans
-        run: |
-          # List all scans and check their status
-          ALL_SCANS=$(curl -s -k -X GET "https://10.10.30.79:8834/scans" \
-            -H "X-ApiKeys: accessKey=ed3364476d8b920196645ca9c0c3a25c61e3847c810b90c73c8d5c0dfcc8f316; secretKey=2c25353939b1eb85ddc23d95e17fd92e867732e342bbc69fed708ff7e024cb0f")
-
-          # Loop through each scan
-          echo "$ALL_SCANS" | jq -c '.scans[]' | while read -r scan; do
-            ID=$(echo "$scan" | jq -r '.id')
-            STATUS=$(curl -s -k -X GET "https://10.10.30.79:8834/scans/$ID" \
-              -H "X-ApiKeys: accessKey=ed3364476d8b920196645ca9c0c3a25c61e3847c810b90c73c8d5c0dfcc8f316; secretKey=2c25353939b1eb85ddc23d95e17fd92e867732e342bbc69fed708ff7e024cb0f" | jq -r '.info.status')
-
-            echo "Scan $ID status: $STATUS"
-
-            # If it's still running, stop it
-            if [[ "$STATUS" == "running" || "$STATUS" == "pending" ]]; then
-              echo "Stopping scan $ID"
-              curl -s -k -X POST "https://10.10.30.79:8834/scans/$ID/stop" \
-                -H "X-ApiKeys: accessKey=ed3364476d8b920196645ca9c0c3a25c61e3847c810b90c73c8d5c0dfcc8f316; secretKey=2c25353939b1eb85ddc23d95e17fd92e867732e342bbc69fed708ff7e024cb0f"
-              # Optionally, delete the scan
-              curl -s -k -X DELETE "https://10.10.30.79:8834/scans/$ID" \
-                -H "X-ApiKeys: accessKey=ed3364476d8b920196645ca9c0c3a25c61e3847c810b90c73c8d5c0dfcc8f316; secretKey=2c25353939b1eb85ddc23d95e17fd92e867732e342bbc69fed708ff7e024cb0f"
-              echo "Scan $ID stopped and deleted."
-            fi
-          done
-
       - name: Start Nessus Scan
         id: start_scan
         run: |
+          echo "Creating Nessus scan..."
           SCAN_RESPONSE=$(curl -s -k -X POST "https://10.10.30.79:8834/scans" \
             -H "X-ApiKeys: accessKey=ed3364476d8b920196645ca9c0c3a25c61e3847c810b90c73c8d5c0dfcc8f316; secretKey=2c25353939b1eb85ddc23d95e17fd92e867732e342bbc69fed708ff7e024cb0f" \
             -H "Content-Type: application/json" \
@@ -60,14 +35,21 @@ jobs:
               }
             }')
 
-          echo "::group::Scan Creation Response"
+          echo "::group::Full Scan Creation Response"
           echo "$SCAN_RESPONSE"
           echo "::endgroup::"
 
           SCAN_ID=$(echo "$SCAN_RESPONSE" | jq -r '.scan.id')
+
+          if [ -z "$SCAN_ID" ] || [ "$SCAN_ID" == "null" ]; then
+            echo "❌ Failed to retrieve scan ID. Response might be invalid."
+            exit 1
+          fi
+
+          echo "✅ SCAN_ID=$SCAN_ID"
           echo "SCAN_ID=$SCAN_ID" >> $GITHUB_ENV
 
-          # Launch the scan
+          echo "Launching scan ID $SCAN_ID..."
           curl -s -k -X POST "https://10.10.30.79:8834/scans/$SCAN_ID/launch" \
             -H "X-ApiKeys: accessKey=ed3364476d8b920196645ca9c0c3a25c61e3847c810b90c73c8d5c0dfcc8f316; secretKey=2c25353939b1eb85ddc23d95e17fd92e867732e342bbc69fed708ff7e024cb0f"
 
@@ -83,7 +65,7 @@ jobs:
 
             echo "Current scan status: $STATUS"
             if [[ "$STATUS" == "completed" ]]; then
-              echo "Scan completed."
+              echo "✅ Scan completed."
               break
             fi
 
@@ -92,17 +74,25 @@ jobs:
           done
 
           if [[ "$STATUS" != "completed" ]]; then
-            echo "Scan did not complete in time."
+            echo "❌ Scan did not complete in time."
             exit 1
           fi
 
       - name: Export Scan Report
         run: |
+          echo "Exporting scan report for scan ID $SCAN_ID..."
+
           EXPORT_ID=$(curl -s -k -X POST "https://10.10.30.79:8834/scans/$SCAN_ID/export" \
             -H "X-ApiKeys: accessKey=ed3364476d8b920196645ca9c0c3a25c61e3847c810b90c73c8d5c0dfcc8f316; secretKey=2c25353939b1eb85ddc23d95e17fd92e867732e342bbc69fed708ff7e024cb0f" \
             -d '{"format": "html"}' | jq -r '.file')
 
-          # Wait for export to be ready
+          if [ -z "$EXPORT_ID" ] || [ "$EXPORT_ID" == "null" ]; then
+            echo "❌ Failed to get export file ID."
+            exit 1
+          fi
+
+          echo "Waiting for export file ID $EXPORT_ID to be ready..."
+
           while true; do
             EXPORT_STATUS=$(curl -s -k -X GET "https://10.10.30.79:8834/scans/$SCAN_ID/export/$EXPORT_ID/status" \
               -H "X-ApiKeys: accessKey=ed3364476d8b920196645ca9c0c3a25c61e3847c810b90c73c8d5c0dfcc8f316; secretKey=2c25353939b1eb85ddc23d95e17fd92e867732e342bbc69fed708ff7e024cb0f" | jq -r '.status')
@@ -114,12 +104,12 @@ jobs:
             sleep 5
           done
 
-          # Download report
           curl -k -X GET "https://10.10.30.79:8834/scans/$SCAN_ID/export/$EXPORT_ID/download" \
             -H "X-ApiKeys: accessKey=ed3364476d8b920196645ca9c0c3a25c61e3847c810b90c73c8d5c0dfcc8f316; secretKey=2c25353939b1eb85ddc23d95e17fd92e867732e342bbc69fed708ff7e024cb0f" -o nessus_scan_report.html
 
+      # Optional: Upload the report as an artifact
       # - name: Upload Report
-      #   uses: actions/upload-artifact@v2
+      #   uses: actions/upload-artifact@v3
       #   with:
       #     name: nessus-scan-report
       #     path: nessus_scan_report.html
