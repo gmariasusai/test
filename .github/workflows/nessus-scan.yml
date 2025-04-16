@@ -1,4 +1,4 @@
-name: Nessus Security Scan
+name: Nessus Security Scan 1
 
 on:
   push:
