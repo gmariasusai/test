@@ -60,6 +60,10 @@ jobs:
               }
             }')
 
+          echo "::group::Scan Creation Response"
+          echo "$SCAN_RESPONSE"
+          echo "::endgroup::"
+
           SCAN_ID=$(echo "$SCAN_RESPONSE" | jq -r '.scan.id')
           echo "SCAN_ID=$SCAN_ID" >> $GITHUB_ENV
 
